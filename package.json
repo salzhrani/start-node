@@ -1,0 +1,14 @@
+{
+  "name": "start-node",
+  "version": "0.1.0",
+  "description": "start node client",
+  "main": "index.js",
+  "author": "Samy Alzhrani",
+  "license": "MIT",
+  "devDependencies": {
+    "code": "^4.0.0",
+    "eslint": "^3.7.1",
+    "joi": "^9.1.0",
+    "mocha": "^3.1.2"
+  }
+}
