@@ -2,9 +2,11 @@ const StartClient = require('..');
 const expect = require('code').expect;
 
 const apiKey = 'test_sec_k_49ebce3370d32aad533b3';
+const openApiKey = 'test_open_k_792b8f7b116f2e689d9e';
 
 describe('client', () => {
 	let testCustomer;
+	let testCard;
 	it('validates api key', () => {
 		
 		try {
@@ -22,7 +24,7 @@ describe('client', () => {
 	});
 	describe('tokens', () => {
 		it('can create a token', (done) => {
-			const client = new StartClient('test_open_k_792b8f7b116f2e689d9e');
+			const client = new StartClient(openApiKey);
 			client.createToken({
 				number: '4242424242424242',
 				exp_month: '11',
@@ -37,7 +39,7 @@ describe('client', () => {
 	});
 	describe('customers', () => {
 		it('can create a customer', (done) => {
-			const client = new StartClient('test_open_k_792b8f7b116f2e689d9e');
+			const client = new StartClient(openApiKey);
 			client.createToken({
 				number: '4242424242424242',
 				exp_month: '11',
@@ -45,7 +47,7 @@ describe('client', () => {
 				cvc: '123'
 			})
 			.then((result) => {
-				client.key = 'test_sec_k_49ebce3370d32aad533b3';
+				client.key = apiKey;
 				return client.addCustomer({
 					name: 'Abdullah',
 					email: 'abdullah@msn.com',
@@ -73,7 +75,6 @@ describe('client', () => {
 		});
 	});
 	describe('cards', () => {
-		let testCard;
 		describe('list', () => {
 			it('lists handles invalid client id', (done) => {
 				try {
@@ -120,7 +121,7 @@ describe('client', () => {
 				});
 			});
 			it('adds cards from token', (done) => {
-				const client = new StartClient('test_open_k_792b8f7b116f2e689d9e');
+				const client = new StartClient(openApiKey);
 				client.createToken({
 					number: '4242424242424242',
 					exp_month: '11',
@@ -160,6 +161,110 @@ describe('client', () => {
 					done();
 				})
 				.catch(done);
+			});
+		});
+	});
+	describe('charges', () => {
+		let testCharge;
+		describe('add', () => {
+			it('adds a charge with customer id', (done) => {
+				const client = new StartClient(openApiKey);
+				client.createToken({
+					number: '4242424242424242',
+					exp_month: '11',
+					exp_year: '2016',
+					cvc: '123'
+				})
+				.then((res) => {
+					client.key = apiKey;
+					return client.addCharge(100, 'SAR', null, res.id, null, 'abdullah@msn.com');
+				})
+				.then((charge) => {
+					expect(charge).to.exist();
+					expect(charge.id).to.exist();
+					expect(charge.currency).to.equal('SAR');
+					expect(charge.amount).to.equal(100);
+					done();
+				})
+				.catch(done);
+			});
+			it('adds a charge with card token', (done) => {
+				const client = new StartClient(openApiKey);
+				client.createToken({
+					number: '4242424242424242',
+					exp_month: '11',
+					exp_year: '2016',
+					cvc: '123'
+				})
+				.then((result) => {
+					client.key = apiKey;
+					return client.addCustomer({
+						name: 'Abdullah',
+						email: 'abdullah@msn.com',
+						card: result.id,
+						description: 'Signed up at the Trade Show in Dec 2014',
+					});
+				})
+				.then((res) => {
+					client.key = apiKey;
+					return client.addCharge(100, 'SAR', res.id, null, null, 'abdullah@msn.com', null, null, false);
+				})
+				.then((charge) => {
+					testCharge = charge;					
+					expect(charge).to.exist();
+					expect(charge.id).to.exist();
+					expect(charge.currency).to.equal('SAR');
+					expect(charge.amount).to.equal(100);
+					expect(charge.captured_amount).to.equal(0);
+					expect(charge.state).to.equal('authorized');
+					done();
+				})
+				.catch(done);
+			});
+		});
+		describe('get', () => {
+			it('works', (done) => {
+				const client = new StartClient(apiKey);
+				client.getCharge(testCharge.id)
+				.then((charge) => {
+					expect(charge).to.exist();
+					expect(charge.id).to.equal(testCharge.id);
+					done();
+				}, done);
+			});
+		});
+		describe('capture', () => {
+			it('works', (done) => {
+				const client = new StartClient(apiKey);
+				client.captureCharge(testCharge.id, 100)
+				.then((charge) => {
+					expect(charge).to.exist();
+					expect(charge.id).to.exist();
+					expect(charge.currency).to.equal('SAR');
+					expect(charge.amount).to.equal(100);
+					expect(charge.captured_amount).to.equal(100);
+					expect(charge.state).to.equal('captured');
+					done();
+				}, done);
+			});
+		});
+		describe('list', () => {
+			it('works', (done) => {
+				const client = new StartClient(apiKey);
+				client.ListCharges()
+				.then((data) => {
+					expect(data.charges).to.exist();
+					expect(data.charges.length).to.be.at.least(1);
+					if (data.meta && data.meta.pagination && data.meta.pagination.before) {
+						return client.ListCharges(20, data.meta.pagination.before);
+					}
+					done();
+				})
+				.then((data) => {
+					expect(data.charges).to.exist();
+					expect(data.charges.length).to.be.at.least(1);
+					done();
+				}, done);
 			});
 		});
 	});
