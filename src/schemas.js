@@ -19,12 +19,15 @@ schemas.token = Joi.object({
 	cvc: Joi.string().min(3).max(4).required(),
 });
 
-schemas.customer = Joi.object({
+schemas.customer = (update) => Joi.object({
 	name: Joi.string().default(null).allow(''),
-	email: Joi.string().email().required(),
+	email: update ? Joi.string().email() : Joi.string().email().required(),
 	card: Joi.alternatives().try(Joi.string(), schemas.card),
+	defaultCardId: Joi.string(),
 	description: Joi.string(),
-});
+}).rename('defaultCardId', 'default_card_id', { ignoreUndefined: true });
+
+schemas.isoDate = Joi.string().isoDate();
 
 schemas.shoppingCart = Joi.object({
 	user_name: Joi.string(),
@@ -68,5 +71,10 @@ schemas.charge = Joi.object({
 	capture: Joi.boolean().default(true),
 	shopping_cart: schemas.shoppingCart,
 }).xor('card', 'customer_id').xor('email', 'customer_id');
+
+schemas.refund = Joi.object({
+	amount: Joi.number().integer().positive(),
+	reason: Joi.string().allow('duplicate', 'fraudulent', 'requested_by_customer').default(null),
+});
 
 module.exports = schemas;

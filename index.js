@@ -30,8 +30,9 @@ class StartClient{
 		}
 		return request(opts, result.value);
 	}
+	// customer
 	addCustomer(customerData) {
-		const result = Joi.validate(customerData, schemas.customer);
+		const result = Joi.validate(customerData, schemas.customer());
 		if (result.error) {
 			return Promise.reject(result.error);
 		}
@@ -51,6 +52,54 @@ class StartClient{
 			auth: `${this.apiKey}:`,
 		}
 		return request(opts)
+	}
+	updateCustomer(customerId, customerData) {
+		if (typeof customerId !== 'string' || !customerId.trim()) {
+			return Promise.reject(new Error('invalid customer id'));
+		}
+		const result = Joi.validate(customerData, schemas.customer(true));
+		if (result.error) {
+			return Promise.reject(result.error);
+		}
+		const opts = {
+			method: 'PUT',
+			path: `/customers/${customerId}`,
+			auth: `${this.apiKey}:`,
+		}
+		return request(opts, result.value);
+	}
+	listCustomers(limit = 20, after, before ) {
+		let result;
+		if (after) {
+			result = Joi.validate(after, schemas.isoDate);
+			if (result.error) {
+				return Promise.reject(result.error);
+			}
+		}
+		if (before) {
+			result = Joi.validate(before, schemas.isoDate);
+			if (result.error) {
+				return Promise.reject(result.error);
+			}
+		}
+		const opts = {
+			method: 'GET',
+			path: `/customers`,
+			auth: `${this.apiKey}:`,
+		}
+		return request(opts, {pagination: { limit, after, before }})
+	}
+	deleteCustomer(customerId) {
+		let result = Joi.validate(customerId, Joi.string());
+		if (result.error) {
+			return Promise.reject(result.error);
+		}
+		const opts = {
+			method: 'DELETE',
+			path: `/customers/${customerId}`,
+			auth: `${this.apiKey}:`,
+		}
+		return request(opts);
 	}
 	// cards
 	listCards(customerId) {
@@ -159,22 +208,45 @@ class StartClient{
 		}
 		return request(opts, { amount: result.value.amount });
 	}
-	ListCharges(limit = 20, before = null, after = null) {
-		const params = [];
-		if (limit && limit !== 20) {
-			params.push(`limit=${limit}`);
+	ListCharges(limit = 20, before, after) {
+		if (after) {
+			Joi.assert(after, schemas.isoDate);
 		}
-		if (before != null) {
-			params.push(`before=${before}`);
-		}
-		if (after != null) {
-			params.push(`after=${after}`);
+		if (before) {
+			Joi.assert(before, schemas.isoDate);
 		}
 		const opts = {
-			path: `/charges/${params.length ? `?${params.join('&')}` : ''}`,
+			path: '/charges',
 			auth: `${this.apiKey}:`,
 		}
-		return request(opts)
+		return request(opts, { pagination: { limit, before, after }})
+	}
+	// refund
+	createRefund(chargeId, amount, reason) {
+		if (typeof chargeId !== 'string' || !chargeId.trim()) {
+			return Promise.reject(new Error('Invalid chargeId'));
+		}
+		const result = Joi.validate({ amount, reason }, schemas.refund);
+		if (result.error) {
+			return Promise.reject(result.error);
+		}
+		const opts = {
+			path: `/charges/${chargeId}/refunds`,
+			auth: `${this.apiKey}:`,
+			method: 'POST'
+		}
+		return request(opts, result.value)
+	}
+	getRefundsForCharge(chargeId) {
+		if (typeof chargeId !== 'string' || !chargeId.trim()) {
+			return Promise.reject(new Error('Invalid chargeId'));
+		}
+		const opts = {
+			path: `/charges/${chargeId}/refunds`,
+			auth: `${this.apiKey}:`,
+			method: 'GET'
+		}
+		return request(opts);
 	}
 }
 
