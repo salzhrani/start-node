@@ -30,7 +30,7 @@ describe('client', () => {
 			client.createToken({
 				number: '4242424242424242',
 				exp_month: '11',
-				exp_year: '2016',
+				exp_year: '2030',
 				cvc: '123'
 			})
 			.then((res) =>{
@@ -45,7 +45,7 @@ describe('client', () => {
 			client.createToken({
 				number: '4242424242424242',
 				exp_month: '11',
-				exp_year: '2016',
+				exp_year: '2030',
 				cvc: '123'
 			})
 			.then((result) => {
@@ -75,7 +75,7 @@ describe('client', () => {
 			})
 			.catch(done)
 		});
-		it('can update a custmer', (done) => {
+		it('can update a customer', (done) => {
 			const client = new StartClient(apiKey);
 			client.updateCustomer(testCustomer.id, { name: 'Muhamed' })
 			.then((customer) => {
@@ -87,7 +87,7 @@ describe('client', () => {
 			})
 			.catch(done)
 		});
-		it('can list all custmer', (done) => {
+		it('can list all customer', (done) => {
 			const client = new StartClient(apiKey);
 			client.listCustomers(10)
 			.then((result) => {
@@ -148,7 +148,7 @@ describe('client', () => {
 			client.addCard(testCustomer.id, {
 				number: '4242424242424242',
 				exp_month: '11',
-				exp_year: '2016',
+				exp_year: '2030',
 				cvc: '123'
 			})
 			.then((res) => {
@@ -164,7 +164,7 @@ describe('client', () => {
 			client.createToken({
 				number: '4242424242424242',
 				exp_month: '11',
-				exp_year: '2016',
+				exp_year: '2030',
 				cvc: '123'
 			})
 			.then((token) => {
@@ -207,12 +207,12 @@ describe('client', () => {
 				client.createToken({
 					number: '4242424242424242',
 					exp_month: '11',
-					exp_year: '2016',
+					exp_year: '2030',
 					cvc: '123'
 				})
 				.then((res) => {
 					client.key = apiKey;
-					return client.addCharge(100, 'SAR', null, res.id, null, 'abdullah@msn.com');
+					return client.addCharge({ amount: 100, currency: 'SAR', card: res.id, email: 'abdullah@msn.com'});
 				})
 				.then((charge) => {
 					expect(charge).to.exist();
@@ -228,7 +228,7 @@ describe('client', () => {
 				client.createToken({
 					number: '4242424242424242',
 					exp_month: '11',
-					exp_year: '2016',
+					exp_year: '2030',
 					cvc: '123'
 				})
 				.then((result) => {
@@ -242,7 +242,13 @@ describe('client', () => {
 				})
 				.then((res) => {
 					client.key = apiKey;
-					return client.addCharge(100, 'SAR', res.id, null, null, 'abdullah@msn.com', null, null, false);
+					return client.addCharge({
+						amount: 100,
+						currency: 'SAR',
+						customer_id: res.id,
+						email: 'abdullah@msn.com',
+						capture: false,
+					});
 				})
 				.then((charge) => {
 					testCharge = charge;					
@@ -306,7 +312,7 @@ describe('client', () => {
 	describe('refunds', () => {
 		it('creates a new refund', (done) => {
 			const client = new StartClient(apiKey);
-			client.createRefund(testCharge.id, 51)
+			client.addRefund(testCharge.id, 51)
 			.then((charge) => {
 				expect(charge).to.exist();
 				expect(charge.object).to.equal('refund');

@@ -1,15 +1,13 @@
+const Joi = require('joi');
+
 const request = require('./src/request');
 const schemas = require('./src/schemas');
-const Joi = require('joi');
+const ValidationError = require('./src/errors').ValidationError;
+
+const stringId = Joi.string().min(3).required();
 
 class StartClient{
 	constructor(apiKey) {
-		if (typeof apiKey !== 'string') {
-			throw new Error('invalid key, expected a string but got ' + typeof apiKey);
-		}
-		if (!apiKey.trim()) {
-			throw new Error('invalid key');
-		}
 		this.apiKey = apiKey;
 	}
 	set key(key) {
@@ -19,9 +17,9 @@ class StartClient{
 		return this.apiKey;
 	}
 	createToken(tokenData) {
-		const result = Joi.validate(tokenData, schemas.token);
+		const result = schemas.token.validate(tokenData);
 		if (result.error) {
-			return Promise.reject(result.error);
+			return Promise.reject(new ValidationError(result.error));
 		}
 		const opts = {
 			method: 'POST',
@@ -32,9 +30,9 @@ class StartClient{
 	}
 	// customer
 	addCustomer(customerData) {
-		const result = Joi.validate(customerData, schemas.customer());
+		const result = schemas.customer().validate(customerData);
 		if (result.error) {
-			return Promise.reject(result.error);
+			return Promise.reject(new ValidationError(result.error));
 		}
 		const opts = {
 			method: 'POST',
@@ -44,8 +42,9 @@ class StartClient{
 		return request(opts, result.value);
 	}
 	getCustomer(customerId) {
-		if (typeof customerId !== 'string' || !customerId.trim()) {
-			return Promise.reject(new Error('invalid customer id'));
+		const result = stringId.validate(customerId)
+		if (result.error) {
+			return Promise.reject(new ValidationError(result.error));
 		}
 		const opts = {
 			path: `/customers/${customerId}`,
@@ -54,40 +53,28 @@ class StartClient{
 		return request(opts)
 	}
 	updateCustomer(customerId, customerData) {
-		if (typeof customerId !== 'string' || !customerId.trim()) {
-			return Promise.reject(new Error('invalid customer id'));
-		}
-		const result = Joi.validate(customerData, schemas.customer(true));
+		const result = Joi.validate({ customerId, customerData}, { customerId: stringId, customerData: schemas.customer(true)});
 		if (result.error) {
-			return Promise.reject(result.error);
+			return Promise.reject(new ValidationError(result.error));
 		}
 		const opts = {
 			method: 'PUT',
 			path: `/customers/${customerId}`,
 			auth: `${this.apiKey}:`,
 		}
-		return request(opts, result.value);
+		return request(opts, result.value.customerData);
 	}
 	listCustomers(limit = 20, after, before ) {
-		let result;
-		if (after) {
-			result = Joi.validate(after, schemas.isoDate);
-			if (result.error) {
-				return Promise.reject(result.error);
-			}
-		}
-		if (before) {
-			result = Joi.validate(before, schemas.isoDate);
-			if (result.error) {
-				return Promise.reject(result.error);
-			}
+		const result = Joi.validate({ limit, after, before}, { limit: Joi.number().integer().positive(), after: schemas.isoDate, before: schemas.isoDate })
+		if (result.error) {
+			return Promise.reject(new ValidationError(result.error));
 		}
 		const opts = {
 			method: 'GET',
 			path: `/customers`,
 			auth: `${this.apiKey}:`,
 		}
-		return request(opts, {pagination: { limit, after, before }})
+		return request(opts, {pagination: result.value })
 	}
 	deleteCustomer(customerId) {
 		let result = Joi.validate(customerId, Joi.string());
@@ -154,32 +141,9 @@ class StartClient{
 		}
 		return request(opts)
 	}
+
 	// charges
-	addCharge(amount, currency, customer_id, cardId, description, email, ip, statementDescriptor, capture, shoppingCart) {
-		const chargeData = {};
-		chargeData.amount = amount;
-		chargeData.currency = currency;
-		if (customer_id) {
-			chargeData.customer_id = customer_id;
-		} else if (cardId) {
-			chargeData.card = cardId;
-			chargeData.email = email;
-		}
-		if (description) {
-			chargeData.description = description;
-		}
-		if (ip) {
-			chargeData.ip = ip;
-		}
-		if (statementDescriptor) {
-			chargeData.statement_descriptor = statementDescriptor;
-		}
-		if (capture != null) {
-			chargeData.capture = capture;
-		}
-		if (shoppingCart) {
-			chargeData.shopping_cart = shoppingCart;
-		}
+	addCharge(chargeData) {
 		const result = Joi.validate(chargeData, schemas.charge);
 		if (result.error) {
 			return Promise.reject(result.error);
@@ -193,6 +157,9 @@ class StartClient{
 	}
 	getCharge(chargeId) {
 		const result = Joi.validate(chargeId, Joi.string().required());
+		if (result.error) {
+			return Promise.reject(result.error);
+		}
 		const opts = {
 			path: `/charges/${result.value}`,
 			auth: `${this.apiKey}:`,
@@ -200,13 +167,20 @@ class StartClient{
 		return request(opts)
 	}
 	captureCharge(chargeId, amount) {
-		const result = Joi.validate({ chargeId, amount }, { chargeId:Joi.string().required() , amount: Joi.number().positive().integer().required() });
+		const result = Joi.validate({ chargeId, amount }, { chargeId:Joi.string().required() , amount: Joi.number().positive().integer() });
+		if (result.error) {
+			return Promise.reject(result.error);
+		}
 		const opts = {
 			path: `/charges/${result.value.chargeId}/capture`,
 			auth: `${this.apiKey}:`,
 			method: 'POST',
 		}
-		return request(opts, { amount: result.value.amount });
+		const params = {};
+		if (amount) {
+			params.amount = amount;
+		}
+		return request(opts, params);
 	}
 	ListCharges(limit = 20, before, after) {
 		if (after) {
@@ -219,10 +193,19 @@ class StartClient{
 			path: '/charges',
 			auth: `${this.apiKey}:`,
 		}
-		return request(opts, { pagination: { limit, before, after }})
+		const pagination = {};
+		if (limit && parseInt(limit, 10)) {
+			pagination.limit = parseInt(limit, 10)
+		}
+		if (before) {
+			pagination.before = before;
+		} else if (after) {
+			pagination.after = after;
+		}
+		return request(opts, { pagination })
 	}
 	// refund
-	createRefund(chargeId, amount, reason) {
+	addRefund(chargeId, amount, reason) {
 		if (typeof chargeId !== 'string' || !chargeId.trim()) {
 			return Promise.reject(new Error('Invalid chargeId'));
 		}

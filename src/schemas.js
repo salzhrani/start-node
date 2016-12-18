@@ -4,7 +4,6 @@ const schemas = {};
 
 schemas.card = Joi.object({
 	name: Joi.string(),
-	card: Joi.string().required(),
 	number: Joi.string().creditCard().required(),
 	exp_year: Joi.date().format('YYYY').required(),
 	exp_month: Joi.date().format('MM').required(),
@@ -67,10 +66,10 @@ schemas.charge = Joi.object({
 	description: Joi.string().allow(null),
 	email: Joi.string().email(),
 	ip: Joi.string().ip(),
-	statement_descriptor: Joi.string().regex(/^[a-zA-Z0-9\s]+$/),
+	statement_descriptor: Joi.string().regex(/^[a-zA-Z0-9\s]+$/).max(37),
 	capture: Joi.boolean().default(true),
 	shopping_cart: schemas.shoppingCart,
-}).xor('card', 'customer_id').xor('email', 'customer_id');
+}).or('card', 'customer_id').or('email', 'customer_id');
 
 schemas.refund = Joi.object({
 	amount: Joi.number().integer().positive(),
