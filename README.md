@@ -6,8 +6,13 @@ Before using this library, you must have:
 * API key(s)
 
 ## Installation
-* package not published yet
-
+```shell
+npm install start-node --save
+```
+or
+```shell
+yarn add start-node
+```
 ## Initialization
 ```js
 const client = new StartClient(API_KEY);
