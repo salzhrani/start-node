@@ -4,6 +4,10 @@
   "description": "start node client",
   "main": "index.js",
   "author": "Samy Alzhrani",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/salzhrani/start-node.git"
+  },
   "license": "MIT",
   "devDependencies": {
     "code": "^4.0.0",
